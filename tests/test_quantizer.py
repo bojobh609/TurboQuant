@@ -86,3 +86,54 @@ class TestTurboQuantProd:
         # Mean error should be near zero (unbiased)
         bias = np.mean(approx_ips - true_ips)
         assert abs(bias) < 0.05, f"Bias too large: {bias}"
+
+
+class TestRotationCaching:
+    def test_same_seed_reuses_rotation(self):
+        """Two TurboQuantMSE instances with same (d, seed) share rotation matrix."""
+        from turboquant.quantizer import _ROTATION_CACHE
+        _ROTATION_CACHE.clear()
+        tq1 = TurboQuantMSE(d=64, num_bits=4, seed=99)
+        tq2 = TurboQuantMSE(d=64, num_bits=4, seed=99)
+        assert tq1.rotation is tq2.rotation
+        assert (64, 99) in _ROTATION_CACHE
+
+    def test_different_seed_gives_different_rotation(self):
+        """Different seeds produce different rotation matrices."""
+        from turboquant.quantizer import _ROTATION_CACHE
+        _ROTATION_CACHE.clear()
+        tq1 = TurboQuantMSE(d=64, num_bits=4, seed=10)
+        tq2 = TurboQuantMSE(d=64, num_bits=4, seed=11)
+        assert not np.array_equal(tq1.rotation, tq2.rotation)
+
+    def test_cached_version_is_faster(self):
+        """Second instantiation is faster due to cache hit (skips QR)."""
+        import time
+        from turboquant.quantizer import _ROTATION_CACHE
+        _ROTATION_CACHE.clear()
+        d = 512
+        t0 = time.perf_counter()
+        TurboQuantMSE(d=d, num_bits=4, seed=200)
+        first = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        TurboQuantMSE(d=d, num_bits=4, seed=200)
+        second = time.perf_counter() - t0
+        assert second < first, f"Cache miss: {second:.4f}s >= {first:.4f}s"
+
+
+class TestQJLCaching:
+    def test_same_seed_reuses_qjl(self):
+        """Two TurboQuantProd instances with same (d, seed) share QJL matrix."""
+        from turboquant.quantizer import _QJL_CACHE
+        _QJL_CACHE.clear()
+        tq1 = TurboQuantProd(d=64, num_bits=4, seed=99)
+        tq2 = TurboQuantProd(d=64, num_bits=4, seed=99)
+        assert tq1.qjl_matrix is tq2.qjl_matrix
+
+    def test_different_seed_gives_different_qjl(self):
+        """Different seeds produce different QJL matrices."""
+        from turboquant.quantizer import _QJL_CACHE
+        _QJL_CACHE.clear()
+        tq1 = TurboQuantProd(d=64, num_bits=4, seed=10)
+        tq2 = TurboQuantProd(d=64, num_bits=4, seed=11)
+        assert not np.array_equal(tq1.qjl_matrix, tq2.qjl_matrix)

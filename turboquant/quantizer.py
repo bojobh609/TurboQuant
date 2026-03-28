@@ -19,6 +19,9 @@ import numpy as np
 
 from turboquant.codebook import LloydMaxQuantizer
 
+_ROTATION_CACHE: dict[tuple[int, int], np.ndarray] = {}  # key: (d, seed)
+_QJL_CACHE: dict[tuple[int, int], np.ndarray] = {}       # key: (d, seed)
+
 
 class TurboQuantMSE:
     """MSE-optimal vector quantizer (Algorithm 1).
@@ -44,10 +47,16 @@ class TurboQuantMSE:
         self.num_bits = num_bits
         self._rng = np.random.RandomState(seed)
 
-        # Pre-compute random orthogonal rotation matrix via QR
+        # Pre-compute random orthogonal rotation matrix via QR (cached)
+        # Always advance RNG state to keep deterministic behavior for downstream code
         gaussian = self._rng.randn(d, d).astype(np.float32)
-        self.rotation, _ = np.linalg.qr(gaussian)
-        self.rotation = self.rotation.astype(np.float32)
+        cache_key = (d, seed)
+        if cache_key in _ROTATION_CACHE:
+            self.rotation = _ROTATION_CACHE[cache_key]
+        else:
+            self.rotation, _ = np.linalg.qr(gaussian)
+            self.rotation = self.rotation.astype(np.float32)
+            _ROTATION_CACHE[cache_key] = self.rotation
 
         # Pre-compute optimal scalar quantizer
         self.codebook = LloydMaxQuantizer(d=d, num_bits=num_bits)
@@ -129,8 +138,16 @@ class TurboQuantProd:
         # Stage 1: MSE quantizer with (b-1) bits
         self.mse_quantizer = TurboQuantMSE(d=d, num_bits=num_bits - 1, seed=seed)
 
-        # Stage 2: QJL projection matrix S ~ N(0, 1), shape (d, d)
-        self.qjl_matrix = self._rng.randn(d, d).astype(np.float32) / np.sqrt(d)
+        # Stage 2: QJL projection matrix S ~ N(0, 1), shape (d, d) (cached)
+        # Use seed offset to decouple QJL RNG from rotation RNG
+        qjl_seed = seed + 1_000_000
+        cache_key = (d, qjl_seed)
+        if cache_key in _QJL_CACHE:
+            self.qjl_matrix = _QJL_CACHE[cache_key]
+        else:
+            qjl_rng = np.random.RandomState(qjl_seed)
+            self.qjl_matrix = qjl_rng.randn(d, d).astype(np.float32) / np.sqrt(d)
+            _QJL_CACHE[cache_key] = self.qjl_matrix
 
     def quantize(self, x: np.ndarray) -> dict:
         """Quantize vectors using MSE + QJL two-stage method.
