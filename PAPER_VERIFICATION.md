@@ -203,10 +203,31 @@ For clarity, here is the complete theorem mapping from the paper:
 
 The paper compares TurboQuant against:
 - **PolarQuant** — theory-based quantization baseline
-- **Product Quantization (PQ)** — standard FAISS method
-- **RabitQ** — grid-based quantization
+- **Product Quantization (PQ)** — standard FAISS method (used by Pinecone, Elasticsearch, OpenSearch)
+- **RaBitQ** — grid-based quantization with error bounds (SIGMOD 2024, previous state-of-the-art)
 - **KIVI** — scalar quantization for KV cache
 - **SnapKV, PyramidKV** — token pruning methods
+
+### Indexing Speed Comparison (Table 2 from paper)
+
+For the nearest neighbor search use case (Section 4.4), the paper reports indexing times on 100K vectors at 4-bit quantization:
+
+| Dimension | Dataset | PQ | RaBitQ | **TurboQuant** | TQ Speedup vs PQ |
+|----------:|---------|---:|-------:|---------:|-----------------:|
+| 200 | GloVe | 37.04s | 597.25s | **0.0007s** | **52,914x** |
+| 1,536 | DBpedia OpenAI3 | 239.75s | 2,267.59s | **0.0013s** | **184,423x** |
+| 3,072 | DBpedia OpenAI3 | 494.42s | 3,957.19s | **0.0021s** | **235,438x** |
+
+TurboQuant achieves this because it is **data-oblivious**: the codebook is computed from the analytical Beta distribution (Lemma 1), not from data clustering. PQ requires k-means training, RaBitQ requires grid optimization — both scale with data size and dimension.
+
+### Recall Comparison (Figure 5 from paper)
+
+The paper states: *"TurboQuant consistently outperforms both Product Quantization and RaBitQ in terms of recall ratio across all experiments"* — on GloVe (d=200), DBpedia (d=1536), and DBpedia (d=3072).
+
+This is significant because:
+1. **PQ** (FAISS default) is known to lack theoretical error bounds and can ["fail disastrously on some real-world datasets"](https://dl.acm.org/doi/10.1145/3654970) (RaBitQ paper, SIGMOD 2024)
+2. **RaBitQ** was the previous state-of-the-art with theoretical guarantees (SIGMOD 2024)
+3. **TurboQuant** beats both while being 50,000–235,000x faster at indexing
 
 Our implementation focuses on the vector search use case (Section 4.4), not KV cache compression (Sections 4.1–4.3).
 

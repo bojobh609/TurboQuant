@@ -160,7 +160,37 @@ From the paper (Theorems 1-3):
 
 TurboQuant operates within **2.7x of the information-theoretic limit** — provably near-optimal.
 
-## Benchmark Results
+## Why TurboQuant Outperforms Existing Methods
+
+Results from the [original paper](https://arxiv.org/abs/2504.19874) (Section 4.4) show TurboQuant **consistently outperforms** both Product Quantization (used by FAISS, Pinecone, Elasticsearch) and RaBitQ (SIGMOD 2024 state-of-the-art) across all tested datasets.
+
+### Indexing Speed (Table 2 from paper, 4-bit, 100K vectors)
+
+| Dimension | Product Quantization | RaBitQ | **TurboQuant** | Speedup vs PQ |
+|----------:|---------------------:|-------:|---------:|---:|
+| 200 (GloVe) | 37.04s | 597.25s | **0.0007s** | **52,914x** |
+| 1,536 (OpenAI3) | 239.75s | 2,267.59s | **0.0013s** | **184,423x** |
+| 3,072 (OpenAI3) | 494.42s | 3,957.19s | **0.0021s** | **235,438x** |
+
+TurboQuant is **50,000–235,000x faster** at indexing because it requires zero data-dependent preprocessing — no k-means, no codebook training, no grid optimization.
+
+### Recall (Figure 5 from paper)
+
+The paper demonstrates TurboQuant achieves **higher recall than both PQ and RaBitQ** at the same compression level, across all three datasets (GloVe d=200, DBpedia d=1536, DBpedia d=3072).
+
+### Why This Matters
+
+| Property | FAISS PQ | RaBitQ (SIGMOD 2024) | **TurboQuant (ICLR 2026)** |
+|----------|----------|------|-----------|
+| Recall | Baseline | Better than PQ | **Best** |
+| Indexing time | Seconds–minutes | Minutes | **Microseconds** |
+| Training data needed | Yes (k-means) | Yes (grid optimization) | **No (data-oblivious)** |
+| Theoretical guarantee | None (can fail on some datasets) | Error bound | **2.72x Shannon limit** |
+| Online/streaming support | No (retrain on new data) | No | **Yes (instant add)** |
+
+PQ is known to ["fail disastrously on some real-world datasets"](https://dl.acm.org/doi/10.1145/3654970) (RaBitQ paper, SIGMOD 2024) because it lacks theoretical error bounds. TurboQuant's data-oblivious design guarantees consistent quality regardless of data distribution.
+
+## Our Benchmark Results
 
 Tested on `all-MiniLM-L6-v2` embeddings (d=384):
 
