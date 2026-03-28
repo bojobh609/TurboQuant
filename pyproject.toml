@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "turboquant"
+version = "0.1.0"
+description = "Near-optimal vector quantization for AI — 5x compression, 95%+ recall, zero preprocessing"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Firmamento Technologies", email = "info@firmamento.tech"},
+    {name = "Luca Di Domenico"},
+]
+keywords = [
+    "vector-quantization", "faiss", "approximate-nearest-neighbor",
+    "embedding-compression", "kv-cache", "llm-inference",
+    "turboquant", "polarquant", "similarity-search",
+    "information-retrieval", "machine-learning", "deep-learning",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-benchmark"]
+bench = ["faiss-cpu>=1.7", "sentence-transformers>=2.0"]
+all = ["faiss-cpu>=1.7", "sentence-transformers>=2.0", "pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/Firmamento-Technologies/TurboQuant"
+Documentation = "https://github.com/Firmamento-Technologies/TurboQuant#readme"
+Repository = "https://github.com/Firmamento-Technologies/TurboQuant"
+Issues = "https://github.com/Firmamento-Technologies/TurboQuant/issues"
+Paper = "https://arxiv.org/abs/2504.19874"
+
+[tool.setuptools.packages.find]
+include = ["turboquant*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
