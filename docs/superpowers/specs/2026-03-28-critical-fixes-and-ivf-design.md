@@ -10,7 +10,7 @@
 
 An in-depth critical analysis of TurboQuant identified 8 issues, ranging from architectural scalability problems to misleading documentation. This spec addresses all of them through 6 prioritized interventions grouped into two phases.
 
-### Issues Addressed
+### Issues Addressed (from two independent external reviews)
 
 1. **`_rebuild_reconstructed()` called on every `add()`** — O(N) rebuild per batch insert
 2. **Brute-force search marketed as ANN** — no indexing structure, O(N·d) per query
@@ -18,6 +18,12 @@ An in-depth critical analysis of TurboQuant identified 8 issues, ranging from ar
 4. **Normalization threshold too permissive** — `atol=1e-3` introduces systematic bias
 5. **No CI/CD** — 3,781 tests with no automated regression prevention
 6. **README overpromises** — "FAISS replacement" without query-time benchmarks
+7. **Rotation matrix overhead not reported** — 9MB for d=1536, invisible in stats()
+8. **No codebook memoization** — same (d, num_bits) recomputes Lloyd-Max from scratch
+9. **Development Status Beta → should be Alpha** — single-day project, no versioning
+10. **No CHANGELOG** — version fixed at 0.1.0 with no release history
+11. **Test quality vs quantity** — parametrized grid tests, missing real-world edge cases
+12. **Benchmark only on 10K vectors** — insufficient for production claims
 
 ---
 
@@ -58,7 +64,42 @@ Apply to both `add()` and `search()`.
 
 **Rationale:** Normalization is O(N) and negligible vs quantization cost. The theoretical guarantees of TurboQuant (Theorem 1) require vectors exactly on S^(d-1). Removing the tolerance eliminates accumulated bias.
 
-### 1.3 README Repositioning
+### 1.3 Codebook Memoization
+
+**File:** `turboquant/codebook.py`
+
+**Change:** Add module-level cache for computed centroids keyed by `(d, num_bits)`:
+
+```python
+_CENTROID_CACHE: dict[tuple[int, int], np.ndarray] = {}
+```
+
+`LloydMaxQuantizer.__init__` checks the cache before running Lloyd-Max iterations. Cache hit avoids 0.44s+ initialization per instance. This matters when:
+- Multiple `TurboQuantIndex` instances share the same (d, num_bits)
+- Serverless cold-starts create fresh instances frequently
+- `IVFTurboQuantIndex` creates nlist sub-indexes with identical codebooks
+
+### 1.4 Stats Overhead Transparency
+
+**File:** `turboquant/index.py`
+
+**Change:** `stats()` now reports:
+- `rotation_matrix_bytes`: d*d*4 bytes (the QR rotation matrix overhead)
+- `total_overhead_bytes`: rotation + centroids + (QJL matrix if use_qjl)
+- `effective_compression_ratio`: accounts for overhead, not just code bytes
+
+This addresses the valid critique that d=1536 rotation matrices (~9MB) are invisible in current stats.
+
+### 1.5 Development Status and CHANGELOG
+
+**Files:** `pyproject.toml`, `CHANGELOG.md`
+
+**Changes:**
+- Development Status: `4 - Beta` → `3 - Alpha`
+- Add `CHANGELOG.md` starting from v0.1.0 with honest description of current state
+- Bump version to `0.2.0` to mark this release
+
+### 1.6 README Repositioning
 
 **File:** `README.md`
 
@@ -68,6 +109,9 @@ Apply to both `add()` and `search()`.
 - Introduce `IVFTurboQuantIndex` as the ANN solution
 - Add query-time benchmark table (measured, not theoretical)
 - Clarify that runtime memory includes the reconstructed float32 matrix for `TurboQuantIndex`
+- Document rotation matrix overhead for high-d embeddings
+- Note that recall benchmarks are on random unit vectors; real embeddings may differ
+- Remove "Online/streaming support: Yes" claim (contradicted by rebuild behavior, even with lazy fix the claim is misleading for IVF which requires training)
 
 ---
 
@@ -191,6 +235,12 @@ Test categories:
 - Lazy rebuild behavior (no rebuild between consecutive add() calls)
 - Always-normalize (vectors with norm 0.999 produce same results as 1.0)
 
+**Quality-focused tests** (address "test theater" critique):
+- Quasi-collinear vectors: pairs with cosine similarity > 0.999
+- Clustered embeddings: vectors with anisotropic distribution (simulating real RAG embeddings)
+- Large dimension edge cases: d=1536, d=3072 with realistic memory constraints
+- Codebook memoization: verify cache hit avoids recomputation
+
 ---
 
 ## Non-Goals
@@ -199,7 +249,7 @@ Test categories:
 - No ADC (Asymmetric Distance Computation) — search remains on reconstructed float32 within partitions
 - No GPU support — pure NumPy/SciPy stays
 - No breaking changes to `TurboQuantIndex` public API — lazy rebuild is internal
-- `codebook.py` and `quantizer.py` remain untouched
+- `quantizer.py` remains untouched (codebook.py gets memoization only)
 
 ---
 
@@ -207,11 +257,14 @@ Test categories:
 
 | File | Action |
 |------|--------|
-| `turboquant/index.py` | Modify: lazy rebuild, always-normalize |
+| `turboquant/index.py` | Modify: lazy rebuild, always-normalize, stats overhead |
+| `turboquant/codebook.py` | Modify: add centroid memoization cache |
 | `turboquant/ivf_index.py` | **New**: IVFTurboQuantIndex |
 | `turboquant/__init__.py` | Modify: export IVFTurboQuantIndex |
-| `README.md` | Modify: repositioning, query-time table, IVF docs |
+| `README.md` | Modify: repositioning, query-time table, IVF docs, overhead transparency |
+| `CHANGELOG.md` | **New**: release history starting v0.1.0 |
+| `pyproject.toml` | Modify: version bump 0.2.0, status Alpha |
 | `.github/workflows/ci.yml` | **New**: CI pipeline |
 | `examples/benchmark_query_time.py` | **New**: query-time benchmark |
 | `tests/test_ivf_index.py` | **New**: IVF test suite |
-| `tests/test_index.py` | Modify: lazy rebuild + normalization tests |
+| `tests/test_index.py` | Modify: lazy rebuild + normalization + quality tests |
