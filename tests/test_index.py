@@ -203,3 +203,29 @@ class TestAlwaysNormalize:
         s1, i1 = idx.search(q_unit, k=5)
         s2, i2 = idx.search(q_scaled, k=5)
         np.testing.assert_array_equal(i1, i2)
+
+
+class TestStatsOverhead:
+    def test_stats_reports_rotation_overhead(self):
+        idx = TurboQuantIndex(dimension=384, num_bits=4, use_qjl=False)
+        idx.add(_random_unit_vectors(100, 384))
+        stats = idx.stats()
+        assert "rotation_matrix_bytes" in stats
+        assert stats["rotation_matrix_bytes"] == 384 * 384 * 4
+
+    def test_stats_reports_effective_compression(self):
+        idx = TurboQuantIndex(dimension=384, num_bits=4, use_qjl=False)
+        idx.add(_random_unit_vectors(1000, 384))
+        stats = idx.stats()
+        assert "effective_compression_ratio" in stats
+        raw = float(stats["compression_ratio"].replace("x", ""))
+        effective = stats["effective_compression_ratio"]
+        assert effective < raw
+        assert effective > 1.0
+
+    def test_stats_reports_qjl_overhead(self):
+        idx = TurboQuantIndex(dimension=128, num_bits=4, use_qjl=True)
+        idx.add(_random_unit_vectors(100, 128))
+        stats = idx.stats()
+        assert "total_overhead_bytes" in stats
+        assert stats["total_overhead_bytes"] > stats["rotation_matrix_bytes"]

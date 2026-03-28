@@ -289,14 +289,32 @@ class TurboQuantIndex:
         return index
 
     def stats(self) -> dict:
-        """Return index statistics."""
+        """Return index statistics including memory overhead transparency."""
+        d = self.dimension
+        rotation_bytes = d * d * 4
+        if self.use_qjl:
+            centroid_bytes = self._quantizer.mse_quantizer.codebook.num_levels * 4
+        else:
+            centroid_bytes = self._quantizer.codebook.num_levels * 4
+        qjl_matrix_bytes = d * d * 4 if self.use_qjl else 0
+        total_overhead = rotation_bytes + centroid_bytes + qjl_matrix_bytes
+
+        code_bytes = self._size * self._quantizer.bytes_per_vector
+        float32_bytes = self._size * d * 4
+        total_with_overhead = code_bytes + total_overhead
+
+        effective_ratio = float32_bytes / total_with_overhead if total_with_overhead > 0 else 0.0
+
         return {
             "size": self._size,
-            "dimension": self.dimension,
+            "dimension": d,
             "num_bits": self.num_bits,
             "use_qjl": self.use_qjl,
             "compression_ratio": f"{self.compression_ratio:.1f}x",
+            "effective_compression_ratio": round(effective_ratio, 2),
             "bytes_per_vector": self._quantizer.bytes_per_vector,
-            "total_bytes": self._size * self._quantizer.bytes_per_vector,
-            "float32_bytes": self._size * self.dimension * 4,
+            "total_code_bytes": code_bytes,
+            "rotation_matrix_bytes": rotation_bytes,
+            "total_overhead_bytes": total_overhead,
+            "float32_bytes": float32_bytes,
         }
