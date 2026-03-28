@@ -205,6 +205,27 @@ class TestAlwaysNormalize:
         np.testing.assert_array_equal(i1, i2)
 
 
+class TestCodesConsolidation:
+    def test_codes_consolidated_after_rebuild(self):
+        """After search triggers rebuild, _codes should be a single-element list."""
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        idx.add(_random_unit_vectors(25, 64, seed=1))
+        idx.add(_random_unit_vectors(25, 64, seed=2))
+        idx.add(_random_unit_vectors(25, 64, seed=3))
+        assert len(idx._codes) == 3
+        idx.search(_random_unit_vectors(2, 64, seed=99), k=5)
+        assert len(idx._codes) == 1
+
+    def test_codes_consolidated_qjl(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=True)
+        idx.add(_random_unit_vectors(25, 64, seed=1))
+        idx.add(_random_unit_vectors(25, 64, seed=2))
+        assert len(idx._codes) == 2
+        idx.search(_random_unit_vectors(2, 64, seed=99), k=5)
+        assert len(idx._codes) == 1
+        assert idx._codes[0]["mse_codes"].shape[0] == 50
+
+
 class TestStatsOverhead:
     def test_stats_reports_rotation_overhead(self):
         idx = TurboQuantIndex(dimension=384, num_bits=4, use_qjl=False)

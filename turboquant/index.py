@@ -134,9 +134,11 @@ class TurboQuantIndex:
                 "residual_norms": all_norms,
             }
             self._reconstructed = self._quantizer.dequantize(merged)
+            self._codes = [merged]  # consolidate
         else:
             all_codes = np.concatenate(self._codes, axis=0)
             self._reconstructed = self._quantizer.dequantize(all_codes)
+            self._codes = [all_codes]  # consolidate
 
         self._dirty = False
 
@@ -313,6 +315,7 @@ class TurboQuantIndex:
             "compression_ratio": f"{self.compression_ratio:.1f}x",
             "effective_compression_ratio": round(effective_ratio, 2),
             "bytes_per_vector": self._quantizer.bytes_per_vector,
+            "total_bytes": code_bytes,
             "total_code_bytes": code_bytes,
             "rotation_matrix_bytes": rotation_bytes,
             "total_overhead_bytes": total_overhead,
