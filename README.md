@@ -284,7 +284,7 @@ python examples/benchmark.py
 
 ## Paper Verification
 
-All six core claims from the TurboQuant paper ([arXiv:2504.19874](https://arxiv.org/abs/2504.19874)) are **empirically verified** by our test suite (3,781 tests).
+All six core claims from the TurboQuant paper ([arXiv:2504.19874](https://arxiv.org/abs/2504.19874)) are **empirically verified** by our test suite (3,781 tests). See **[PAPER_VERIFICATION.md](PAPER_VERIFICATION.md)** for the full verification report with theorem references, reproduction instructions, and detailed statistical results.
 
 ### Claim 1: MSE within 2.72x of Shannon Limit (Theorem 1)
 
