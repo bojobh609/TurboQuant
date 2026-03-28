@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/hero_banner.png" alt="TurboQuant — Near-Optimal Vector Quantization for AI" width="100%">
+</p>
+
 # TurboQuant
 
 **Near-Optimal Vector Quantization for AI — Pure Python Implementation**
@@ -97,7 +101,21 @@ cos_sim = np.mean(np.sum(vectors * recon, axis=1))
 print(f"MSE: {mse:.6f}, Cosine Similarity: {cos_sim:.4f}")
 ```
 
+## Performance
+
+<p align="center">
+  <img src="docs/recall_comparison.png" alt="TurboQuant vs Product Quantization Recall" width="80%">
+</p>
+
+<p align="center">
+  <img src="docs/compression_tradeoff.png" alt="Quality vs Compression Trade-off" width="70%">
+</p>
+
 ## How It Works
+
+<p align="center">
+  <img src="docs/algorithm_flow.png" alt="TurboQuant Algorithm Flow" width="90%">
+</p>
 
 TurboQuant implements a mathematically elegant compression scheme from [Google Research (arXiv:2504.19874)](https://arxiv.org/abs/2504.19874):
 
