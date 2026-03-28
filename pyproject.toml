@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "turboquant"
-version = "0.2.0"
+version = "0.3.0"
 description = "Near-optimal vector quantization for AI — 5x compression, 95%+ recall, zero preprocessing"
 readme = "README.md"
 license = {text = "Apache-2.0"}

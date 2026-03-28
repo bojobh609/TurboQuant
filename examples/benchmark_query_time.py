@@ -72,7 +72,7 @@ def main():
     print("=" * 80)
     print()
 
-    for n in [10_000, 100_000]:
+    for n in [5_000, 10_000]:
         print(f"--- Dataset: {n:,} vectors ---")
         db = _random_unit_vectors(n, d, seed=0)
         queries = _random_unit_vectors(num_queries, d, seed=99)

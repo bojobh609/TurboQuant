@@ -4,6 +4,23 @@ All notable changes to TurboQuant will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-03-28
+
+### Added
+- `memory_efficient=True` mode — ADC search without decompressed float32 matrix in RAM
+- Rotation matrix caching by (d, seed) — eliminates redundant QR decompositions
+- QJL matrix caching by (d, seed)
+- Real-data benchmark script with clustered and anisotropic distributions
+- Query performance table in README
+
+### Fixed
+- Codes list consolidation after rebuild prevents O(k²) concatenation
+- README: clarified storage vs runtime compression, IVF training requirements
+- README: added query time benchmarks and multi-distribution recall data
+
+### Changed
+- Version: 0.2.0 -> 0.3.0
+
 ## [0.2.0] - 2026-03-28
 
 ### Added

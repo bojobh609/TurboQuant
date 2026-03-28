@@ -205,6 +205,27 @@ class TestAlwaysNormalize:
         np.testing.assert_array_equal(i1, i2)
 
 
+class TestCodesConsolidation:
+    def test_codes_consolidated_after_rebuild(self):
+        """After search triggers rebuild, _codes should be a single-element list."""
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        idx.add(_random_unit_vectors(25, 64, seed=1))
+        idx.add(_random_unit_vectors(25, 64, seed=2))
+        idx.add(_random_unit_vectors(25, 64, seed=3))
+        assert len(idx._codes) == 3
+        idx.search(_random_unit_vectors(2, 64, seed=99), k=5)
+        assert len(idx._codes) == 1
+
+    def test_codes_consolidated_qjl(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=True)
+        idx.add(_random_unit_vectors(25, 64, seed=1))
+        idx.add(_random_unit_vectors(25, 64, seed=2))
+        assert len(idx._codes) == 2
+        idx.search(_random_unit_vectors(2, 64, seed=99), k=5)
+        assert len(idx._codes) == 1
+        assert idx._codes[0]["mse_codes"].shape[0] == 50
+
+
 class TestStatsOverhead:
     def test_stats_reports_rotation_overhead(self):
         idx = TurboQuantIndex(dimension=384, num_bits=4, use_qjl=False)
@@ -229,3 +250,68 @@ class TestStatsOverhead:
         stats = idx.stats()
         assert "total_overhead_bytes" in stats
         assert stats["total_overhead_bytes"] > stats["rotation_matrix_bytes"]
+
+
+class TestMemoryEfficientSearch:
+    def test_memory_efficient_mse_same_results(self):
+        """ADC search returns same top-k as default within tolerance."""
+        d, n = 128, 500
+        db = _random_unit_vectors(n, d)
+        queries = _random_unit_vectors(10, d, seed=99)
+
+        idx_default = TurboQuantIndex(dimension=d, num_bits=4, use_qjl=False)
+        idx_default.add(db)
+        sims_d, ids_d = idx_default.search(queries, k=10)
+
+        idx_adc = TurboQuantIndex(dimension=d, num_bits=4, use_qjl=False, memory_efficient=True)
+        idx_adc.add(db)
+        sims_a, ids_a = idx_adc.search(queries, k=10)
+
+        # Top-1 should match exactly
+        np.testing.assert_array_equal(ids_d[:, 0], ids_a[:, 0])
+        # Top-10 overlap >= 90%
+        for i in range(10):
+            overlap = len(set(ids_d[i]) & set(ids_a[i]))
+            assert overlap >= 9
+
+    def test_memory_efficient_qjl_same_results(self):
+        d, n = 128, 500
+        db = _random_unit_vectors(n, d)
+        queries = _random_unit_vectors(10, d, seed=99)
+
+        idx_default = TurboQuantIndex(dimension=d, num_bits=4, use_qjl=True)
+        idx_default.add(db)
+        sims_d, ids_d = idx_default.search(queries, k=10)
+
+        idx_adc = TurboQuantIndex(dimension=d, num_bits=4, use_qjl=True, memory_efficient=True)
+        idx_adc.add(db)
+        sims_a, ids_a = idx_adc.search(queries, k=10)
+
+        np.testing.assert_array_equal(ids_d[:, 0], ids_a[:, 0])
+
+    def test_memory_efficient_no_reconstructed(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False, memory_efficient=True)
+        idx.add(_random_unit_vectors(100, 64))
+        idx.search(_random_unit_vectors(5, 64, seed=99), k=10)
+        assert idx._reconstructed is None
+
+    def test_memory_efficient_empty_index(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, memory_efficient=True)
+        sims, ids = idx.search(_random_unit_vectors(3, 64), k=10)
+        assert sims.shape[1] == 0
+
+    def test_memory_efficient_save_load(self):
+        import tempfile
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False, memory_efficient=True)
+        idx.add(_random_unit_vectors(100, 64))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            idx.save(tmpdir)
+            loaded = TurboQuantIndex.load(tmpdir)
+            assert loaded.size == 100
+            assert loaded.memory_efficient is True
+
+    def test_memory_efficient_stats_reports_mode(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, memory_efficient=True)
+        idx.add(_random_unit_vectors(50, 64))
+        stats = idx.stats()
+        assert stats["memory_efficient"] is True
