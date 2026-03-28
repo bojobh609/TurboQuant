@@ -399,8 +399,11 @@ class TestAPIConsistency:
         s = idx.stats()
         assert isinstance(s, dict)
         expected_keys = {"size", "dimension", "num_bits", "use_qjl",
-                         "compression_ratio", "bytes_per_vector",
-                         "total_bytes", "float32_bytes"}
+                         "memory_efficient",
+                         "compression_ratio", "effective_compression_ratio",
+                         "bytes_per_vector", "total_bytes", "total_code_bytes",
+                         "rotation_matrix_bytes", "total_overhead_bytes",
+                         "float32_bytes"}
         assert expected_keys == set(s.keys())
         assert s["size"] == 100
         assert s["dimension"] == 64
