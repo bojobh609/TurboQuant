@@ -1,8 +1,8 @@
 # Paper Verification Report
 
 **Implementation:** TurboQuant v0.1.0 — [GitHub](https://github.com/Firmamento-Technologies/TurboQuant)
-**Paper:** Zandieh, A., Daliri, M., Hadian, M., & Mirrokni, V. (2026). *TurboQuant: Online Vector Quantization with Near-Optimal Distortion Rate.* International Conference on Learning Representations (ICLR 2026).
-**arXiv:** [2504.19874](https://arxiv.org/abs/2504.19874)
+**Paper:** Zandieh, A. (Google Research), Daliri, M. (New York University), Hadian, M. (Google DeepMind), & Mirrokni, V. (Google Research). (2026). *TurboQuant: Online Vector Quantization with Near-Optimal Distortion Rate.* International Conference on Learning Representations (ICLR 2026).
+**arXiv:** [2504.19874](https://arxiv.org/abs/2504.19874) | **OpenReview:** [ICLR 2026](https://openreview.net/pdf/6593f484501e295cdbe7efcbc46d7f20fc7e741f.pdf)
 **Google Research Blog:** [TurboQuant: Redefining AI efficiency with extreme compression](https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/)
 
 ---
@@ -19,7 +19,7 @@ This document reports the empirical verification of all six core theoretical cla
 
 **Paper reference:** Theorem 1 (Section 3.1)
 
-**Statement:** The per-coordinate mean squared error of PolarQuant satisfies:
+**Statement:** The per-coordinate mean squared error of TurboQuant_mse (Algorithm 1) satisfies:
 
 ```
 MSE(b) ≤ (√3 · π / 2) · (1 / 4^b)
@@ -50,9 +50,9 @@ where `b` is the number of bits per coordinate. The ratio to the Shannon lower b
 
 ## Claim 2 — Empirical MSE Below Theoretical Bound
 
-**Paper reference:** Section 3.1, Corollary 1
+**Paper reference:** Theorem 1 (Section 3.1), empirical validation (Section 4.1)
 
-**Statement:** For L2-normalized vectors on S^(d-1), the total reconstruction MSE after PolarQuant should be bounded by `theoretical_mse × d`.
+**Statement:** For L2-normalized vectors on S^(d-1), the total reconstruction MSE after TurboQuant_mse (Algorithm 1) should be bounded by `D_mse × d`, where `D_mse ≤ (√3·π/2) · (1/4^b)` per coordinate.
 
 **Verification method:** Quantize and reconstruct 5,000 random unit vectors, compute `mean(‖x - x̃‖²)`, compare to `theoretical_mse × d`.
 
@@ -83,7 +83,7 @@ where `b` is the number of bits per coordinate. The ratio to the Shannon lower b
 
 **Paper reference:** Section 3.2
 
-**Statement:** PolarQuant achieves a compression ratio of `32/b` relative to float32 storage, where `b` is the number of bits per coordinate.
+**Statement:** TurboQuant_mse (Algorithm 1) achieves a compression ratio of `32/b` relative to float32 storage, where `b` is the number of bits per coordinate.
 
 **Verification method:** Compute `(d × 4) / bytes_per_vector` for `TurboQuantMSE` at each bit-width.
 
@@ -108,9 +108,9 @@ where `b` is the number of bits per coordinate. The ratio to the Shannon lower b
 
 ## Claim 4 — Unbiased Inner Product Estimation via QJL
 
-**Paper reference:** Theorem 3 (Section 3.3), Algorithm 2
+**Paper reference:** Theorem 2 (Section 3.2), Algorithm 2 (TurboQuant_prod)
 
-**Statement:** TurboQuantProd (Algorithm 2) uses a Quantized Johnson-Lindenstrauss (QJL) correction to achieve unbiased inner product estimation: `E[<y, x̃>] = <y, x>`.
+**Statement (Theorem 2):** TurboQuant_prod (Algorithm 2) uses a Quantized Johnson-Lindenstrauss (QJL) correction to achieve unbiased inner product estimation: `E[<y, Q⁻¹(Q(x))>] = <y, x>`, with distortion `D_prod ≤ (√3·π²·‖y‖²) / (d · 4^b)`.
 
 **Verification method:** Generate 2,000 random vector pairs on the unit sphere. For each pair (x, y), compute the true inner product `<y, x>` and the estimated inner product `<y, dequant(quant(x))>`. The mean difference (bias) should be approximately zero.
 
@@ -130,9 +130,9 @@ where `b` is the number of bits per coordinate. The ratio to the Shannon lower b
 
 ## Claim 5 — Zero Preprocessing / Data-Oblivious
 
-**Paper reference:** Section 1 (Introduction), Section 3.1
+**Paper reference:** Section 1 (Introduction), Section 1.3 (Techniques and Contributions), Section 3.1
 
-**Statement:** TurboQuant is data-oblivious — the quantization scheme depends only on the dimension `d` and bit-width `b`, not on the data distribution. No training, no k-means, no codebook learning is required.
+**Statement:** TurboQuant is data-oblivious — the quantization scheme depends only on the dimension `d` and bit-width `b`, not on the data distribution. No training, no k-means, no codebook learning is required. From the paper: "Our data-oblivious algorithms, suitable for online applications, achieve near-optimal distortion rates."
 
 **Verification method:**
 1. The codebook (Lloyd-Max centroids) is computed from the analytical Beta distribution, not from data.
@@ -158,9 +158,9 @@ Compare: FAISS PQ requires k-means training on representative data (seconds to m
 
 ## Claim 6 — High Recall for Approximate Nearest Neighbor Search
 
-**Paper reference:** Section 4 (Experiments)
+**Paper reference:** Section 4.4 (Near Neighbor Search)
 
-**Statement:** TurboQuant achieves competitive recall for approximate nearest neighbor search, with quality improving monotonically with bit-width.
+**Statement:** TurboQuant achieves competitive recall for approximate nearest neighbor search on GloVe (d=200) and DBpedia OpenAI3 embeddings (d=1536, d=3072), outperforming standard Product Quantization and RabitQ while reducing indexing time to virtually zero (0.0007s vs 37s for PQ, 597s for RabitQ).
 
 **Verification method:** Build index with N=5,000 random unit vectors (d=128). Search for 100 queries. Compare top-10 results against brute-force ground truth (exact cosine similarity ranking).
 
@@ -181,6 +181,34 @@ Compare: FAISS PQ requires k-means training on representative data (seconds to m
 **95% target: CONFIRMED** — Achieved at 6 bits (5.3x compression).
 
 **Tests:** `test_index_exhaustive.py::TestRecall` (18 tests), `test_integration.py::TestMixedPrecisionComparison` (9 tests), `test_recall.py` (5 tests)
+
+---
+
+## Paper Structure Reference
+
+For clarity, here is the complete theorem mapping from the paper:
+
+| Paper Element | Statement | Our Verification |
+|--------------|-----------|-----------------|
+| **Theorem 1** (§3.1) | D_mse ≤ (√3·π/2) · (1/4^b) | Claims 1, 2 |
+| **Theorem 2** (§3.2) | E[⟨y, Q⁻¹(Q(x))⟩] = ⟨y, x⟩; D_prod ≤ (√3·π²·‖y‖²)/(d·4^b) | Claim 4 |
+| **Theorem 3** (§3.3) | Lower bounds: D_mse ≥ 1/4^b; D_prod ≥ (1/d)·(1/4^b) | Claim 1 (ratio) |
+| **Algorithm 1** (§3.1) | TurboQuant_mse: rotate → quantize → dequantize → rotate back | Claims 1, 2, 3, 5 |
+| **Algorithm 2** (§3.2) | TurboQuant_prod: MSE(b-1) + QJL(1-bit residual) | Claim 4 |
+| **Lemma 1** (§2) | Hypersphere coordinates → Beta distribution → N(0, 1/d) | test_properties.py |
+| **Lemma 4** (§2.2) | QJL unbiasedness and variance bound | Claim 4 |
+| **Section 4.4** | Near Neighbor Search on GloVe/DBpedia | Claim 6 |
+
+### Paper's original experimental baselines
+
+The paper compares TurboQuant against:
+- **PolarQuant** — theory-based quantization baseline
+- **Product Quantization (PQ)** — standard FAISS method
+- **RabitQ** — grid-based quantization
+- **KIVI** — scalar quantization for KV cache
+- **SnapKV, PyramidKV** — token pruning methods
+
+Our implementation focuses on the vector search use case (Section 4.4), not KV cache compression (Sections 4.1–4.3).
 
 ---
 

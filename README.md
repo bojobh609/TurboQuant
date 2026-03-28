@@ -128,7 +128,7 @@ print(f"MSE: {mse:.6f}, Cosine Similarity: {cos_sim:.4f}")
 
 TurboQuant implements a mathematically elegant compression scheme from [Google Research (arXiv:2504.19874)](https://arxiv.org/abs/2504.19874):
 
-### Algorithm: PolarQuant + Lloyd-Max
+### Algorithm: TurboQuant_mse (Algorithm 1) + Lloyd-Max
 
 ```
 Input vector x (d dimensions, unit norm)
@@ -322,7 +322,7 @@ Exact match with the theoretical compression factor for all bit-widths:
 | 6 | 5.3x | 5.3x |
 | 8 | 4.0x | 4.0x |
 
-### Claim 4: QJL Provides Unbiased Inner Product Estimation (Theorem 3)
+### Claim 4: QJL Provides Unbiased Inner Product Estimation (Theorem 2)
 
 The QJL correction (Algorithm 2) eliminates bias in inner product estimation. Measured on 2,000 random vector pairs:
 

@@ -5,8 +5,8 @@ A pure Python/NumPy implementation of Google Research's TurboQuant algorithm
 zero preprocessing time.
 
 Features:
-    - PolarQuant: MSE-optimal scalar quantization via random rotation
-    - QJL: Unbiased inner product estimation via 1-bit residual correction
+    - TurboQuantMSE: MSE-optimal scalar quantization via random rotation (Algorithm 1)
+    - TurboQuantProd: Unbiased inner product estimation via QJL residual correction (Algorithm 2)
     - TurboQuantIndex: Drop-in FAISS replacement for vector search
     - 2-8 bit compression with configurable quality/size trade-off
 
