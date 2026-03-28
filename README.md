@@ -263,7 +263,7 @@ examples/
 
 ## Testing
 
-**3,781 tests** covering mathematical properties, edge cases, stress scenarios, and end-to-end workflows.
+**3,781 tests** covering mathematical properties, edge cases, stress scenarios, and end-to-end workflows. See **[TESTING.md](TESTING.md)** for full documentation of every test category, parametric ranges, and paper claim verification mapping.
 
 ```bash
 # Run all tests (3,781 parametrized test cases)
