@@ -101,6 +101,14 @@ cos_sim = np.mean(np.sum(vectors * recon, axis=1))
 print(f"MSE: {mse:.6f}, Cosine Similarity: {cos_sim:.4f}")
 ```
 
+## Demo
+
+<p align="center">
+  <img src="docs/turboquant_demo.gif" alt="TurboQuant Algorithm Animation" width="90%">
+</p>
+
+> 8-second walkthrough: input vectors → random rotation → Lloyd-Max quantization → reconstruction quality. [Full MP4](docs/turboquant_demo.mp4)
+
 ## Performance
 
 <p align="center">
