@@ -4,7 +4,7 @@
 
 # TurboQuant
 
-**Near-Optimal Vector Quantization for AI — Pure Python Implementation**
+**The only TurboQuant implementation for vector search — Pure Python FAISS replacement**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -12,7 +12,9 @@
 [![Paper Verified](https://img.shields.io/badge/paper-6%2F6%20claims%20verified-success.svg)](#paper-verification)
 [![Paper](https://img.shields.io/badge/arXiv-2504.19874-b31b1b.svg)](https://arxiv.org/abs/2504.19874)
 
-A production-ready Python implementation of Google Research's **TurboQuant** algorithm ([ICLR 2026](https://arxiv.org/abs/2504.19874)). Compress embedding vectors by **5-8x** with **95%+ recall** and **zero preprocessing time**.
+180+ repos implemented Google's TurboQuant for KV cache compression. **This is the only one built for vector similarity search.**
+
+A production-ready pure Python implementation of the **TurboQuant** algorithm ([Zandieh et al., ICLR 2026](https://arxiv.org/abs/2504.19874)) as a **drop-in FAISS replacement**. Compress embedding vectors by **5-8x** with **95%+ recall**, **zero preprocessing**, and **no GPU required**.
 
 ## Why TurboQuant?
 
@@ -369,17 +371,26 @@ These claims are verified by **3,781 parametrized tests** across 5 test suites:
 
 All tests are parametrized across combinations of dimensions (8–1024), bit-widths (1–8), vector counts (1–50K), and quantizer modes (MSE-only, MSE+QJL).
 
-## Comparison with Existing Implementations
+## Comparison with Other TurboQuant Implementations
 
-| Implementation | Focus | GPU Required | Pure Python |
-|---------------|-------|:---:|:---:|
-| [0xSero/turboquant](https://github.com/0xSero/turboquant) | KV cache (vLLM) | Yes | No |
-| [tonbistudio/turboquant-pytorch](https://github.com/tonbistudio/turboquant-pytorch) | KV cache (PyTorch) | Yes | No |
-| [mitkox/vllm-turboquant](https://github.com/mitkox/vllm-turboquant) | vLLM fork | Yes | No |
-| [TheTom/turboquant_plus](https://github.com/TheTom/turboquant_plus) | llama.cpp | Yes | No |
-| **This implementation** | **Vector search** | **No** | **Yes** |
+As of March 2026, there are **180+ TurboQuant repos on GitHub**. All others focus on KV cache compression for LLM inference. This is the only one built for vector search.
 
-This is the only implementation focused on **vector similarity search** (FAISS replacement) rather than KV cache compression, and the only one that runs on **CPU with pure Python/NumPy**.
+| Implementation | Stars | Focus | GPU | Pure Python | Tests |
+|---------------|------:|-------|:---:|:---:|------:|
+| [tonbistudio/turboquant-pytorch](https://github.com/tonbistudio/turboquant-pytorch) | 493 | KV cache (PyTorch) | Yes | No | — |
+| [TheTom/turboquant_plus](https://github.com/TheTom/turboquant_plus) | 453 | KV cache (Apple Silicon) | Yes | No | — |
+| [0xSero/turboquant](https://github.com/0xSero/turboquant) | 189 | KV cache (vLLM + Triton) | Yes | No | — |
+| [mitkox/vllm-turboquant](https://github.com/mitkox/vllm-turboquant) | 187 | vLLM fork | Yes | No | — |
+| [RecursiveIntell/turbo-quant](https://github.com/RecursiveIntell/turbo-quant) | 8 | Vector search + KV (Rust) | No | No | — |
+| **This implementation** | — | **Vector search (FAISS replacement)** | **No** | **Yes** | **3,781** |
+
+### Why a separate implementation for vector search?
+
+KV cache compression and vector search are **different problems**:
+- **KV cache**: compress activations during LLM inference → needs PyTorch/Triton, GPU, tight integration with model architecture
+- **Vector search**: compress stored embeddings for similarity retrieval → needs simple API, CPU support, persistence, FAISS-like interface
+
+We focused on the use case described in **Section 4.4** of the paper (Near Neighbor Search on GloVe/DBpedia embeddings), not Sections 4.1–4.3 (KV cache on Llama/Mistral).
 
 ## Citation
 
