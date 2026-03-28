@@ -13,6 +13,9 @@ import numpy as np
 from scipy.special import gammaln
 
 
+_CENTROID_CACHE: dict[tuple[int, int], np.ndarray] = {}
+
+
 def hypersphere_coordinate_pdf(x: float, d: int) -> float:
     """PDF of a single coordinate of a uniform vector on S^(d-1).
 
@@ -63,7 +66,12 @@ class LloydMaxQuantizer:
         self.d = d
         self.num_bits = num_bits
         self.num_levels = 2 ** num_bits
-        self.centroids = self._compute_centroids(grid_points, max_iter)
+        cache_key = (d, num_bits)
+        if cache_key in _CENTROID_CACHE:
+            self.centroids = _CENTROID_CACHE[cache_key]
+        else:
+            self.centroids = self._compute_centroids(grid_points, max_iter)
+            _CENTROID_CACHE[cache_key] = self.centroids
 
     def _compute_centroids(self, grid_points: int, max_iter: int) -> np.ndarray:
         """Compute optimal centroids via Lloyd-Max algorithm."""

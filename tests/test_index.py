@@ -104,3 +104,35 @@ class TestTurboQuantIndex:
         idx.add(_random_unit_vectors(5, 128))
         sims, indices = idx.search(_random_unit_vectors(2, 128, seed=99), k=100)
         assert indices.shape == (2, 5)
+
+
+class TestCodebookMemoization:
+    def test_same_params_reuse_centroids(self):
+        """Two LloydMaxQuantizer instances with same (d, num_bits) share centroids."""
+        from turboquant.codebook import LloydMaxQuantizer, _CENTROID_CACHE
+        _CENTROID_CACHE.clear()
+        lmq1 = LloydMaxQuantizer(d=64, num_bits=4)
+        lmq2 = LloydMaxQuantizer(d=64, num_bits=4)
+        assert lmq1.centroids is lmq2.centroids
+        assert (64, 4) in _CENTROID_CACHE
+
+    def test_different_params_different_centroids(self):
+        """Different (d, num_bits) produce different centroids."""
+        from turboquant.codebook import LloydMaxQuantizer, _CENTROID_CACHE
+        _CENTROID_CACHE.clear()
+        lmq1 = LloydMaxQuantizer(d=64, num_bits=4)
+        lmq2 = LloydMaxQuantizer(d=64, num_bits=3)
+        assert not np.array_equal(lmq1.centroids, lmq2.centroids)
+
+    def test_cache_speedup(self):
+        """Second instantiation is near-instant due to cache hit."""
+        import time
+        from turboquant.codebook import LloydMaxQuantizer, _CENTROID_CACHE
+        _CENTROID_CACHE.clear()
+        t0 = time.perf_counter()
+        LloydMaxQuantizer(d=128, num_bits=4)
+        first = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        LloydMaxQuantizer(d=128, num_bits=4)
+        second = time.perf_counter() - t0
+        assert second < first * 0.1  # at least 10x faster
