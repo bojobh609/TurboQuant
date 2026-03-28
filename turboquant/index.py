@@ -76,6 +76,7 @@ class TurboQuantIndex:
         self._codes: list = []
         self._reconstructed: np.ndarray | None = None
         self._size = 0
+        self._dirty = False
 
     @property
     def size(self) -> int:
@@ -104,10 +105,9 @@ class TurboQuantIndex:
                 f"Expected dimension {self.dimension}, got {vectors.shape[1]}"
             )
 
-        # Normalize if needed
+        # Normalize
         norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-        if not np.allclose(norms, 1.0, atol=1e-3):
-            vectors = vectors / np.clip(norms, 1e-8, None)
+        vectors = vectors / np.clip(norms, 1e-8, None)
 
         # Quantize
         codes = self._quantizer.quantize(vectors)
@@ -115,9 +115,7 @@ class TurboQuantIndex:
         # Store codes
         self._codes.append(codes)
         self._size += vectors.shape[0]
-
-        # Pre-compute reconstructed vectors for fast search
-        self._rebuild_reconstructed()
+        self._dirty = True
 
     def _rebuild_reconstructed(self) -> None:
         """Rebuild the full reconstructed matrix from stored codes."""
@@ -140,6 +138,8 @@ class TurboQuantIndex:
             all_codes = np.concatenate(self._codes, axis=0)
             self._reconstructed = self._quantizer.dequantize(all_codes)
 
+        self._dirty = False
+
     def search(
         self,
         queries: np.ndarray,
@@ -156,6 +156,9 @@ class TurboQuantIndex:
                 similarities: shape (Q, k), cosine similarities (descending)
                 indices: shape (Q, k), database vector indices
         """
+        if self._dirty:
+            self._rebuild_reconstructed()
+
         if self._reconstructed is None or self._size == 0:
             empty_sim = np.zeros((queries.shape[0], 0), dtype=np.float32)
             empty_idx = np.zeros((queries.shape[0], 0), dtype=np.int64)
@@ -167,8 +170,7 @@ class TurboQuantIndex:
 
         # Normalize queries
         norms = np.linalg.norm(queries, axis=1, keepdims=True)
-        if not np.allclose(norms, 1.0, atol=1e-3):
-            queries = queries / np.clip(norms, 1e-8, None)
+        queries = queries / np.clip(norms, 1e-8, None)
 
         # Compute similarities
         similarities = queries @ self._reconstructed.T  # (Q, N)
@@ -198,6 +200,9 @@ class TurboQuantIndex:
         Args:
             path: Directory path to save to.
         """
+        if self._dirty:
+            self._rebuild_reconstructed()
+
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 

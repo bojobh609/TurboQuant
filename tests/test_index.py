@@ -136,3 +136,70 @@ class TestCodebookMemoization:
         LloydMaxQuantizer(d=128, num_bits=4)
         second = time.perf_counter() - t0
         assert second < first * 0.1  # at least 10x faster
+
+
+class TestLazyRebuild:
+    def test_add_does_not_rebuild(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        db = _random_unit_vectors(50, 64)
+        idx.add(db)
+        assert idx._dirty is True
+        assert idx._reconstructed is None
+
+    def test_search_triggers_rebuild(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        idx.add(_random_unit_vectors(50, 64))
+        assert idx._dirty is True
+        queries = _random_unit_vectors(2, 64, seed=99)
+        idx.search(queries, k=5)
+        assert idx._dirty is False
+        assert idx._reconstructed is not None
+
+    def test_multiple_adds_single_rebuild(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        idx.add(_random_unit_vectors(25, 64, seed=1))
+        idx.add(_random_unit_vectors(25, 64, seed=2))
+        idx.add(_random_unit_vectors(25, 64, seed=3))
+        assert idx.size == 75
+        assert idx._dirty is True
+        assert idx._reconstructed is None
+        queries = _random_unit_vectors(2, 64, seed=99)
+        sims, indices = idx.search(queries, k=5)
+        assert idx._dirty is False
+        assert sims.shape == (2, 5)
+
+    def test_save_triggers_rebuild_if_dirty(self):
+        import tempfile
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        idx.add(_random_unit_vectors(50, 64))
+        assert idx._dirty is True
+        with tempfile.TemporaryDirectory() as tmpdir:
+            idx.save(tmpdir)
+            loaded = TurboQuantIndex.load(tmpdir)
+            assert loaded.size == 50
+
+
+class TestAlwaysNormalize:
+    def test_near_unit_vectors_get_normalized(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        v = _random_unit_vectors(50, 64)
+        v_scaled = v * 0.999
+        idx.add(v_scaled)
+
+        idx2 = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        idx2.add(v)
+
+        q = _random_unit_vectors(5, 64, seed=99)
+        s1, i1 = idx.search(q, k=5)
+        s2, i2 = idx2.search(q, k=5)
+        np.testing.assert_array_equal(i1, i2)
+
+    def test_query_normalization(self):
+        idx = TurboQuantIndex(dimension=64, num_bits=4, use_qjl=False)
+        idx.add(_random_unit_vectors(100, 64))
+
+        q_unit = _random_unit_vectors(3, 64, seed=99)
+        q_scaled = q_unit * 2.5
+        s1, i1 = idx.search(q_unit, k=5)
+        s2, i2 = idx.search(q_scaled, k=5)
+        np.testing.assert_array_equal(i1, i2)
