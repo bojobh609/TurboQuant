@@ -8,7 +8,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-35%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-3781%20passed-brightgreen.svg)](#testing)
 [![Paper](https://img.shields.io/badge/arXiv-2504.19874-b31b1b.svg)](https://arxiv.org/abs/2504.19874)
 
 A production-ready Python implementation of Google Research's **TurboQuant** algorithm ([ICLR 2026](https://arxiv.org/abs/2504.19874)). Compress embedding vectors by **5-8x** with **95%+ recall** and **zero preprocessing time**.
@@ -244,10 +244,15 @@ turboquant/
   index.py          # TurboQuantIndex (FAISS-compatible vector search)
 
 tests/
-  test_codebook.py  # Codebook and PDF tests
-  test_quantizer.py # MSE/Prod quantizer tests
-  test_index.py     # Index add/search/save/load tests
-  test_recall.py    # Recall benchmark comparison
+  test_codebook.py            # Codebook and PDF tests
+  test_quantizer.py           # MSE/Prod quantizer tests
+  test_index.py               # Index add/search/save/load tests
+  test_recall.py              # Recall benchmark comparison
+  test_codebook_exhaustive.py # 785 parametric codebook tests
+  test_quantizer_exhaustive.py# 1,266 parametric quantizer tests
+  test_index_exhaustive.py    # 1,344 parametric index tests
+  test_properties.py          # 211 mathematical invariant tests
+  test_integration.py         # 140 end-to-end integration tests
 
 examples/
   quickstart.py     # Basic usage example
@@ -257,10 +262,19 @@ examples/
 
 ## Testing
 
+**3,781 tests** covering mathematical properties, edge cases, stress scenarios, and end-to-end workflows.
+
 ```bash
-# Run all tests
+# Run all tests (3,781 parametrized test cases)
 pip install -e ".[dev]"
 pytest tests/ -v
+
+# Run only fast unit tests (~35 tests, <20s)
+pytest tests/test_codebook.py tests/test_quantizer.py tests/test_index.py -v
+
+# Run exhaustive suite (~3,700 tests, ~13 min)
+pytest tests/test_codebook_exhaustive.py tests/test_quantizer_exhaustive.py \
+       tests/test_index_exhaustive.py tests/test_properties.py tests/test_integration.py -v
 
 # Run benchmarks
 pip install -e ".[bench]"
