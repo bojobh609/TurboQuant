@@ -8,7 +8,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-3781%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-3823%20passed-brightgreen.svg)](#testing)
 [![Paper Verified](https://img.shields.io/badge/paper-6%2F6%20claims%20verified-success.svg)](#paper-verification)
 [![Paper](https://img.shields.io/badge/arXiv-2504.19874-b31b1b.svg)](https://arxiv.org/abs/2504.19874)
 
@@ -20,13 +20,15 @@ A pure Python implementation of the **TurboQuant** algorithm ([Zandieh et al., I
 
 | Feature | FAISS PQ | ScaNN | **TurboQuant** |
 |---------|----------|-------|----------------|
-| Preprocessing | K-means (minutes) | Tree building (minutes) | **None (instant)** |
+| Preprocessing | K-means (minutes) | Tree building (minutes) | **None (instant)** ¹ |
 | Recall@10 | ~60% | ~85% | **95.3%** |
 | Compression | 8x | 4x | **5-8x** |
 | Dependencies | C++/CUDA | C++/TensorFlow | **Pure Python/NumPy** |
 | Theory guarantee | None | None | **2.7x Shannon limit** |
-| Training data needed | Yes | Yes | **No (data-oblivious)** |
+| Training data needed | Yes | Yes | **No (data-oblivious)** ¹ |
 | Query complexity | O(N) brute-force | O(log N) | **O(sqrt(N)) with IVF** |
+
+*¹ `TurboQuantIndex`: no preprocessing, no training data. `IVFTurboQuantIndex`: requires K-means training on representative data.*
 
 ## Quick Start
 
@@ -240,12 +242,35 @@ Tested on `all-MiniLM-L6-v2` embeddings (d=384):
 | High accuracy (RAG, search) | **6** | **95.3%** | **5.3x** |
 | Near-lossless | 8 | 99.5% | 4.0x |
 
+### Query Performance
+
+Measured on a single-threaded environment (pure Python/NumPy):
+
+| Index Type | N | Dimension | Query Latency (100 queries) | QPS | Recall@10 |
+|------------|---:|----------:|----------------------------:|----:|----------:|
+| TurboQuantIndex | 5K | 384 | 25ms | 3,991 | 96.0% |
+| TurboQuantIndex | 10K | 384 | 107ms | 939 | 95.6% |
+
+*Note: Pure Python/NumPy implementation. C++ libraries (FAISS, ScaNN) are significantly faster at scale. TurboQuant's advantages are zero-preprocessing, high recall, and minimal dependencies.*
+
+### Recall on Different Distributions
+
+Evaluated against exact float32 brute-force ground truth (N=5,000, d=384):
+
+| Distribution | 4-bit Recall@10 | 6-bit Recall@10 | 8-bit Recall@10 |
+|-------------|----------------:|----------------:|----------------:|
+| Isotropic (best case) | 84.9% | 95.5% | 98.3% |
+| Clustered (20 clusters) | 85.8% | 95.9% | 98.0% |
+| Anisotropic (rank-50) | 83.9% | 93.9% | 97.7% |
+
+*Isotropic matches TurboQuant's theoretical assumptions. Real embeddings typically fall between clustered and anisotropic. Benchmarks on synthetic distributions — real embedding recall may vary.*
+
 ### Limitations and Transparency
 
 - **`TurboQuantIndex` uses brute-force search** — O(N*d) per query. For datasets > 100K vectors, use `IVFTurboQuantIndex`
 - **Rotation matrix overhead** — each index stores a d*d float32 matrix (e.g., 9MB for d=1536). Use `stats()` to see `effective_compression_ratio`
 - **Recall benchmarks above use random unit vectors** — real embeddings with semantic clustering may show different recall characteristics
-- **Runtime memory** — the reconstructed float32 matrix is held in RAM for search; compressed storage savings apply to disk persistence
+- **Runtime memory** — by default, the reconstructed float32 matrix is held in RAM for search. Use `memory_efficient=True` to enable ADC search directly on compressed codes (trades speed for ~8x less RAM)
 
 ## API Reference
 
@@ -255,11 +280,12 @@ High-level vector search index with TurboQuant compression.
 
 ```python
 TurboQuantIndex(
-    dimension: int,          # Vector dimension (e.g., 384 for MiniLM)
-    num_bits: int = 4,       # Bits per coordinate (2-8)
-    metric: str = "cosine",  # Similarity metric
-    use_qjl: bool = False,   # Enable QJL for unbiased inner products
-    seed: int = 42,          # Random seed for reproducibility
+    dimension: int,              # Vector dimension (e.g., 384 for MiniLM)
+    num_bits: int = 4,           # Bits per coordinate (2-8)
+    metric: str = "cosine",      # Similarity metric
+    use_qjl: bool = False,       # Enable QJL for unbiased inner products
+    seed: int = 42,              # Random seed for reproducibility
+    memory_efficient: bool = False,  # ADC search on compressed codes (less RAM)
 )
 ```
 
@@ -347,17 +373,19 @@ tests/
   test_integration.py         # 140 end-to-end integration tests
 
 examples/
-  quickstart.py     # Basic usage example
-  semantic_search.py # Sentence-transformers integration
-  benchmark.py      # FAISS comparison benchmark
+  quickstart.py           # Basic usage example
+  semantic_search.py      # Sentence-transformers integration
+  benchmark.py            # FAISS comparison benchmark
+  benchmark_query_time.py # Query latency and QPS benchmark
+  benchmark_real_data.py  # Multi-distribution recall benchmark
 ```
 
 ## Testing
 
-**3,781 tests** covering mathematical properties, edge cases, stress scenarios, and end-to-end workflows. See **[TESTING.md](TESTING.md)** for full documentation of every test category, parametric ranges, and paper claim verification mapping.
+**3,823 tests** covering mathematical properties, edge cases, stress scenarios, and end-to-end workflows. See **[TESTING.md](TESTING.md)** for full documentation of every test category, parametric ranges, and paper claim verification mapping.
 
 ```bash
-# Run all tests (3,781 parametrized test cases)
+# Run all tests (3,823 parametrized test cases)
 pip install -e ".[dev]"
 pytest tests/ -v
 
@@ -375,7 +403,7 @@ python examples/benchmark.py
 
 ## Paper Verification
 
-All six core claims from the TurboQuant paper ([arXiv:2504.19874](https://arxiv.org/abs/2504.19874)) are **empirically verified** by our test suite (3,781 tests). See **[PAPER_VERIFICATION.md](PAPER_VERIFICATION.md)** for the full verification report with theorem references, reproduction instructions, and detailed statistical results.
+All six core claims from the TurboQuant paper ([arXiv:2504.19874](https://arxiv.org/abs/2504.19874)) are **empirically verified** by our test suite (3,823 tests). See **[PAPER_VERIFICATION.md](PAPER_VERIFICATION.md)** for the full verification report with theorem references, reproduction instructions, and detailed statistical results.
 
 ### Claim 1: MSE within 2.72x of Shannon Limit (Theorem 1)
 

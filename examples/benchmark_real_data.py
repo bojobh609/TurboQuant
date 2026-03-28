@@ -74,9 +74,9 @@ def benchmark_distribution(name, db, queries, bits_list):
 
 def main():
     d = 384
-    n_db = 10_000
-    n_queries = 200
-    bits_list = [2, 3, 4, 5, 6, 8]
+    n_db = 5_000
+    n_queries = 100
+    bits_list = [2, 4, 6, 8]
 
     print("=" * 70)
     print("TurboQuant Recall Benchmark — Multiple Data Distributions")
