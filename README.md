@@ -4,7 +4,7 @@
 
 # TurboQuant
 
-**The only TurboQuant implementation for vector search — Pure Python FAISS replacement**
+**The only TurboQuant implementation for vector search — FAISS-compatible vector quantization library**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -14,7 +14,7 @@
 
 180+ repos implemented Google's TurboQuant for KV cache compression. **This is the only one built for vector similarity search.**
 
-A production-ready pure Python implementation of the **TurboQuant** algorithm ([Zandieh et al., ICLR 2026](https://arxiv.org/abs/2504.19874)) as a **drop-in FAISS replacement**. Compress embedding vectors by **5-8x** with **95%+ recall**, **zero preprocessing**, and **no GPU required**.
+A pure Python implementation of the **TurboQuant** algorithm ([Zandieh et al., ICLR 2026](https://arxiv.org/abs/2504.19874)) for **FAISS-compatible vector quantization**. Compress embedding vectors by **5-8x** with **95%+ recall**, **zero preprocessing**, and **no GPU required**. Includes both brute-force (`TurboQuantIndex`) and sub-linear ANN search (`IVFTurboQuantIndex`).
 
 ## Why TurboQuant?
 
@@ -26,6 +26,7 @@ A production-ready pure Python implementation of the **TurboQuant** algorithm ([
 | Dependencies | C++/CUDA | C++/TensorFlow | **Pure Python/NumPy** |
 | Theory guarantee | None | None | **2.7x Shannon limit** |
 | Training data needed | Yes | Yes | **No (data-oblivious)** |
+| Query complexity | O(N) brute-force | O(log N) | **O(sqrt(N)) with IVF** |
 
 ## Quick Start
 
@@ -63,6 +64,31 @@ similarities, indices = index.search(query, k=10)
 # Save / Load
 index.save("my_index")
 loaded = TurboQuantIndex.load("my_index")
+```
+
+### With IVF for Large Datasets
+
+```python
+from turboquant import IVFTurboQuantIndex
+import numpy as np
+
+# Create IVF index for sub-linear search
+index = IVFTurboQuantIndex(
+    dimension=384, num_bits=6,
+    nlist=100,    # number of partitions
+    nprobe=10,    # partitions to search per query
+)
+
+# Train partitioning (K-means on a sample)
+training_data = np.random.randn(50000, 384).astype(np.float32)
+index.train(training_data)
+
+# Add vectors
+index.add(training_data)
+
+# Search (probes only nprobe partitions, not all N vectors)
+query = np.random.randn(1, 384).astype(np.float32)
+similarities, indices = index.search(query, k=10)
 ```
 
 ### With Sentence Transformers
@@ -186,7 +212,8 @@ The paper demonstrates TurboQuant achieves **higher recall than both PQ and RaBi
 | Indexing time | Seconds–minutes | Minutes | **Microseconds** |
 | Training data needed | Yes (k-means) | Yes (grid optimization) | **No (data-oblivious)** |
 | Theoretical guarantee | None (can fail on some datasets) | Error bound | **2.72x Shannon limit** |
-| Online/streaming support | No (retrain on new data) | No | **Yes (instant add)** |
+| Online/streaming support | No (retrain on new data) | No | Brute-force: yes / IVF: after training |
+| Query complexity | O(N) | O(log N) | **O(sqrt(N)) with IVF** |
 
 PQ is known to ["fail disastrously on some real-world datasets"](https://dl.acm.org/doi/10.1145/3654970) (RaBitQ paper, SIGMOD 2024) because it lacks theoretical error bounds. TurboQuant's data-oblivious design guarantees consistent quality regardless of data distribution.
 
@@ -213,6 +240,13 @@ Tested on `all-MiniLM-L6-v2` embeddings (d=384):
 | High accuracy (RAG, search) | **6** | **95.3%** | **5.3x** |
 | Near-lossless | 8 | 99.5% | 4.0x |
 
+### Limitations and Transparency
+
+- **`TurboQuantIndex` uses brute-force search** — O(N*d) per query. For datasets > 100K vectors, use `IVFTurboQuantIndex`
+- **Rotation matrix overhead** — each index stores a d*d float32 matrix (e.g., 9MB for d=1536). Use `stats()` to see `effective_compression_ratio`
+- **Recall benchmarks above use random unit vectors** — real embeddings with semantic clustering may show different recall characteristics
+- **Runtime memory** — the reconstructed float32 matrix is held in RAM for search; compressed storage savings apply to disk persistence
+
 ## API Reference
 
 ### `TurboQuantIndex`
@@ -234,6 +268,29 @@ TurboQuantIndex(
 - `search(queries, k=10)` — Return (similarities, indices) for top-k neighbors
 - `save(path)` / `load(path)` — Persist to disk
 - `stats()` — Return index statistics
+
+### `IVFTurboQuantIndex`
+
+Inverted File index with TurboQuant compression for sub-linear ANN search.
+
+```python
+IVFTurboQuantIndex(
+    dimension: int,          # Vector dimension
+    num_bits: int = 4,       # Bits per coordinate (2-8)
+    nlist: int = 100,        # Number of IVF partitions
+    nprobe: int = 10,        # Partitions to search per query
+    metric: str = "cosine",  # Similarity metric
+    use_qjl: bool = True,    # Enable QJL correction
+    seed: int = 42,          # Random seed
+)
+```
+
+**Methods:**
+- `train(vectors)` — Run K-means to learn partition centroids
+- `add(vectors)` — Assign and add vectors to partitions
+- `search(queries, k=10)` — Search nprobe nearest partitions
+- `save(path)` / `load(path)` — Persist to disk
+- `stats()` — Return index and partition statistics
 
 ### `TurboQuantMSE`
 
@@ -275,11 +332,13 @@ turboquant/
   codebook.py       # Lloyd-Max quantizer for Beta distribution
   quantizer.py      # TurboQuantMSE & TurboQuantProd (Algorithms 1 & 2)
   index.py          # TurboQuantIndex (FAISS-compatible vector search)
+  ivf_index.py    # IVFTurboQuantIndex (IVF + TurboQuant ANN search)
 
 tests/
   test_codebook.py            # Codebook and PDF tests
   test_quantizer.py           # MSE/Prod quantizer tests
   test_index.py               # Index add/search/save/load tests
+  test_ivf_index.py         # IVF training, search, save/load, edge cases
   test_recall.py              # Recall benchmark comparison
   test_codebook_exhaustive.py # 785 parametric codebook tests
   test_quantizer_exhaustive.py# 1,266 parametric quantizer tests
