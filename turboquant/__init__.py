@@ -23,11 +23,13 @@ __version__ = "0.1.0"
 
 from turboquant.quantizer import TurboQuantMSE, TurboQuantProd
 from turboquant.index import TurboQuantIndex
+from turboquant.ivf_index import IVFTurboQuantIndex
 from turboquant.codebook import LloydMaxQuantizer
 
 __all__ = [
     "TurboQuantMSE",
     "TurboQuantProd",
     "TurboQuantIndex",
+    "IVFTurboQuantIndex",
     "LloydMaxQuantizer",
 ]
